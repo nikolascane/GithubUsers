@@ -25,7 +25,6 @@ class UserListViewController: UITableViewController {
   }
 
   private func configureContent() {
-    self.tableView.prefetchDataSource = self
     self.viewModel.avatarLoaded = self.reloadCellAt
     self.viewModel.error = self.presentError
   }
