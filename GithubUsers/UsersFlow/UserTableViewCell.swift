@@ -10,9 +10,19 @@ import UIKit
 
 class UserTableViewCell: UITableViewCell {
 
-  func configure(with user: User) {
+  override func prepareForReuse() {
+    super.prepareForReuse()
     self.imageView?.image = nil
+    self.textLabel?.text = nil
+  }
+  
+  func configure(with user: User) {
+    if let data = user.smallAvatarData {
+      self.imageView?.image = UIImage(data: data)
+    }
+    else {
+      self.imageView?.image = UIImage(named: "defaultAvatar")
+    }
     self.textLabel?.text = user.nikname
-    self.detailTextLabel?.text = user.name
   }
 }

@@ -9,7 +9,7 @@
 import UIKit
 import Foundation
 
-struct User: Decodable {
+class User: Decodable {
   let nikname: String
   let name: String?
   let id: Int
@@ -19,54 +19,57 @@ struct User: Decodable {
   let type: String
   let admin: Bool
   let company: String?
-  let blog: String
-  let location: String
+  let blog: String?
+  let location: String?
   let email: String?
-  let publicRepos: Int
-  let publicGists: Int
-  let followers: Int
-  let following: Int
-  let createdAt: String
-  //nikname "login": "mojombo",
-  // "id": 1,
-  //avatarUrl "avatar_url": "https://avatars0.githubusercontent.com/u/1?v=4&s=60",
-  //page "html_url": "https://github.com/mojombo",
-  //followersList "followers_url": "https://api.github.com/users/mojombo/followers",
-  //type "type": "User",
-  //admin "site_admin": false,
-  //name "name": "Tom Preston-Werner",
-  //company "company": null,
-  //blog "blog": "http://tom.preston-werner.com",
-  //location "location": "San Francisco",
-  //email "email": null,
-  //publicRepos "public_repos": 61,
-  //publicGists "public_gists": 62,
-  //followers "followers": 21896,
-  //following "following": 11,
-  //createsAt "created_at": "2007-10-20T05:24:19Z",
+  let publicRepos: Int?
+  let publicGists: Int?
+  let followers: Int?
+  let following: Int?
+  let createdAt: Date?
+  var smallAvatarData: Data?
+  var smallAvatarDataloading: Bool = false
+  var largeAvatarDataUrl: URL?
+  var largeAvatarDataLoading: Bool = false
   
   private enum CodingKeys: String, CodingKey {
     case nikname = "login"
-    case name
-    case id
+    case name = "name"
+    case id = "id"
     case avatarUrl = "avatar_url"
     case page = "html_url"
     case followersList = "followers_url"
-    case type
+    case type = "type"
     case admin = "site_admin"
-    case company
-    case blog
-    case location
-    case email
+    case company = "company"
+    case blog = "blog"
+    case location = "location"
+    case email = "email"
     case publicRepos = "public_repos"
     case publicGists = "public_gists"
-    case followers
-    case following
+    case followers = "followers"
+    case following = "following"
     case createdAt = "created_at"
   }
   
-//  required init(decoder: Decoder) throws {
-//    let container = try decoder.container(keyedBy: UserCodingKeys.self)
-//    self.
-//  }
+  init(decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.name = try container.decode(String.self, forKey: .name)
+    self.nikname = try container.decode(String.self, forKey: .nikname)
+    self.id = try container.decode(Int.self, forKey: .id)
+    self.avatarUrl = try container.decode(String.self, forKey: .avatarUrl)
+    self.page = try container.decode(String.self, forKey: .page)
+    self.followersList = try container.decode(String.self, forKey: .followersList)
+    self.type = try container.decode(String.self, forKey: .type)
+    self.admin = try container.decode(Bool.self, forKey: .admin)
+    self.company = try container.decode(String.self, forKey: .company)
+    self.blog = try container.decode(String.self, forKey: .blog)
+    self.location = try container.decode(String.self, forKey: .location)
+    self.email = try container.decode(String.self, forKey: .email)
+    self.publicRepos = try container.decode(Int.self, forKey: .publicRepos)
+    self.publicGists = try container.decode(Int.self, forKey: .publicGists)
+    self.followers = try container.decode(Int.self, forKey: .followers)
+    self.following = try container.decode(Int.self, forKey: .followersList)
+    self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+  }
 }

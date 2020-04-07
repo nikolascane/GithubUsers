@@ -11,57 +11,38 @@ import UIKit
 class UserListViewController: UITableViewController {
 
   private let cellId = "UserTableViewCellIdentifier"
+  private let cellHeight: CGFloat = 60
   
   var viewModel: UserListProtocol = UserViewModel()
-  var detailViewController: UserDetailsViewController? = nil
+
+  @IBOutlet weak var activity: UIActivityIndicatorView!
   
   override func viewDidLoad() {
     super.viewDidLoad()
     
-    self.configureView()
     self.configureContent()
-    self.startUIFlow()
-  }
-  
-  private func configureView() {
-    if let split = splitViewController {
-        let controllers = split.viewControllers
-        detailViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? UserDetailsViewController
-    }
-  }
-  
-  private func configureContent() {
-    
-  }
-  
-  private func startUIFlow() {
-    self.viewModel.getUsers {
-      self.tableView.reloadData()
-    }
+    self.loadUsers()
   }
 
+  private func configureContent() {
+    self.tableView.prefetchDataSource = self
+    self.viewModel.avatarLoaded = self.reloadCellAt
+    self.viewModel.error = self.presentError
+  }
+  
   override func viewWillAppear(_ animated: Bool) {
     clearsSelectionOnViewWillAppear = splitViewController!.isCollapsed
     super.viewWillAppear(animated)
   }
 }
-  // MARK: - Segues
-extension UserListViewController {
-  override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-    if segue.identifier == "showDetail" {
-      if let controller = (segue.destination as? UINavigationController)?.topViewController as? UserDetailsViewController {
-        controller.configureView(viewModel: self.viewModel as? UserDetailsProtocol)
-        controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
-        controller.navigationItem.leftItemsSupplementBackButton = true
-        detailViewController = controller
-      }
-    }
-  }
-}
-  // MARK: - Table View
+// MARK: - Table View
 extension UserListViewController {
   override func numberOfSections(in tableView: UITableView) -> Int {
     return 1
+  }
+  
+  override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+    self.cellHeight
   }
 
   override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -71,12 +52,62 @@ extension UserListViewController {
   override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     if let cell = tableView.dequeueReusableCell(withIdentifier: self.cellId, for: indexPath) as? UserTableViewCell {
       cell.configure(with: self.viewModel.users[indexPath.row])
+      DispatchQueue.global().async {
+        self.viewModel.loadAvatar(indexPath: indexPath)
+      }
+      return cell
     }
     return UITableViewCell()
   }
   
+  override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    
+  }
+  
   override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    tableView.deselectRow(at: indexPath, animated: false)
     self.viewModel.selectUser(at: indexPath)
+    self.openDetails()
   }
 }
-
+//MARK: UIScrollViewDelegate
+extension UserListViewController {
+  override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    let offsetY = scrollView.contentOffset.y
+    let contentHeight = scrollView.contentSize.height
+    let scrollHeigh = scrollView.frame.height
+    if offsetY < 0 || contentHeight < self.cellHeight {
+      return
+    }
+    if (offsetY + scrollHeigh >= contentHeight - self.cellHeight) {
+      self.loadUsers()
+    }
+  }
+}
+//MARK: Actions
+extension UserListViewController {
+  private func loadUsers() {
+    self.activity.startAnimating()
+    self.viewModel.getUsers { indexPaths in
+      self.activity.stopAnimating()
+        self.tableView.beginUpdates()
+        self.tableView.insertRows(at: indexPaths, with: .automatic)
+        self.tableView.endUpdates()
+    }
+  }
+  
+  private func reloadCellAt(_ indexPath: IndexPath) {
+    if let visiblePaths = self.tableView.indexPathsForVisibleRows, visiblePaths.contains(indexPath) {
+      self.tableView.reloadRows(at: [indexPath], with: .automatic)
+    }
+  }
+  
+  private func openDetails() {
+    if let detailsVC = UIStoryboard(name: Storyboards.main.rawValue, bundle: nil).instantiateViewController(withIdentifier: Controllers.details.rawValue) as? UserDetailsViewController {
+      detailsVC.configureView(viewModel: self.viewModel as? UserDetailsProtocol)
+      detailsVC.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
+      detailsVC.navigationItem.leftItemsSupplementBackButton = true
+      self.navigationController?.pushViewController(detailsVC, animated: true)
+    }
+  }
+}
