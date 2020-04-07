@@ -28,9 +28,33 @@ class UserDetailsViewController: UIViewController {
   
   private let userDispatchGroup = DispatchGroup()
 
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    self.activity.startAnimating()
+    self.loadAvatar()
+    self.loadUserDetails()
+    self.setupContent()
+    self.drawImage()
+    self.setupDispatchGroup()
+  }
+  
+  override func viewWillAppear(_ animated: Bool) {
+    self.viewModel?.error = self.presentError
+    super.viewWillAppear(animated)
+  }
+  
+  override func viewWillDisappear(_ animated: Bool) {
+    self.viewModel?.error = nil
+    super.viewWillDisappear(animated)
+  }
+}
+
+//MARK: Setup
+extension UserDetailsViewController {
+  
   func configureView(viewModel: UserDetailsProtocol?) {
     self.viewModel = viewModel
-    self.viewModel?.detailError = self.presentError
   }
   
   private func setupContent() {
@@ -60,17 +84,6 @@ class UserDetailsViewController: UIViewController {
     else {
       self.userImageView.image = UIImage(named: "defaultAvatar")
     }
-  }
-
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    
-    self.activity.startAnimating()
-    self.loadAvatar()
-    self.loadUserDetails()
-    self.setupContent()
-    self.drawImage()
-    self.setupDispatchGroup()
   }
   
   private func setupDispatchGroup() {

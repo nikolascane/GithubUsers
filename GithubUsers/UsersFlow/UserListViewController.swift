@@ -16,6 +16,13 @@ class UserListViewController: UITableViewController {
   var viewModel: UserListProtocol = UserViewModel()
 
   @IBOutlet weak var activity: UIActivityIndicatorView!
+  @IBOutlet weak var searchBar: UISearchBar!
+  @IBOutlet weak var scopeButton: UIBarButtonItem!
+  
+  private lazy var tapRecognizer: UITapGestureRecognizer = {
+    var recognizer = UITapGestureRecognizer(target:self, action: #selector(dismissKeyboard))
+    return recognizer
+  }()
   
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -25,13 +32,24 @@ class UserListViewController: UITableViewController {
   }
 
   private func configureContent() {
+    self.title = "Github Users"
     self.viewModel.avatarLoaded = self.reloadCellAt
-    self.viewModel.error = self.presentError
+    self.scopeButton.target = self
+    self.scopeButton.action = #selector(scopeChanged)
+    self.setScopeButtonTitle()
+    self.refreshControl = UIRefreshControl()
+    self.refreshControl?.addTarget(self, action: #selector(loadUsersFromScratch), for: .valueChanged)
   }
   
   override func viewWillAppear(_ animated: Bool) {
-    clearsSelectionOnViewWillAppear = splitViewController!.isCollapsed
+    self.viewModel.error = self.presentError
     super.viewWillAppear(animated)
+    
+  }
+  
+  override func viewWillDisappear(_ animated: Bool) {
+    self.viewModel.error = nil
+    super.viewWillDisappear(animated)
   }
 }
 // MARK: - Table View
@@ -59,10 +77,6 @@ extension UserListViewController {
     return UITableViewCell()
   }
   
-  override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-    
-  }
-  
   override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     tableView.deselectRow(at: indexPath, animated: false)
     self.viewModel.selectUser(at: indexPath)
@@ -85,13 +99,22 @@ extension UserListViewController {
 }
 //MARK: Actions
 extension UserListViewController {
-  private func loadUsers() {
+  
+  @objc private func loadUsersFromScratch() {
+    self.viewModel.disposeUsers()
+    self.tableView.reloadData()
+    self.loadUsers()
+  }
+  
+  @objc private func loadUsers() {
     self.activity.startAnimating()
-    self.viewModel.getUsers { indexPaths in
-      self.activity.stopAnimating()
-        self.tableView.beginUpdates()
-        self.tableView.insertRows(at: indexPaths, with: .automatic)
-        self.tableView.endUpdates()
+    self.viewModel.getUsers { [weak self] indexPaths in
+      self?.activity.stopAnimating()
+      self?.refreshControl?.endRefreshing()
+      
+      self?.tableView.beginUpdates()
+      self?.tableView.insertRows(at: indexPaths, with: .automatic)
+      self?.tableView.endUpdates()
     }
   }
   
@@ -108,5 +131,45 @@ extension UserListViewController {
       detailsVC.navigationItem.leftItemsSupplementBackButton = true
       self.navigationController?.pushViewController(detailsVC, animated: true)
     }
+  }
+  
+  @objc func dismissKeyboard() {
+    searchBar.resignFirstResponder()
+  }
+  
+  private func setScopeButtonTitle() {
+    self.scopeButton.title = self.viewModel.searchScopeGlobal ? "Github" : "Local"
+  }
+  
+  @objc func scopeChanged() {
+    self.viewModel.searchScopeGlobal.toggle()
+    self.setScopeButtonTitle()
+  }
+}
+// MARK: - Search Bar Delegate
+extension UserListViewController: UISearchBarDelegate {
+  func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+    self.dismissKeyboard()
+    
+    guard let searchText = searchBar.text, !searchText.isEmpty else {
+      self.viewModel.disposeSearch()
+      self.tableView.reloadData()
+      return
+    }
+    
+    self.activity.startAnimating()
+    self.viewModel.searchUser(login: searchText, loaded: { [weak self] in
+      self?.activity.stopAnimating()
+      self?.tableView.reloadData()
+    })
+  }
+  
+  func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+    self.view.addGestureRecognizer(self.tapRecognizer)
+    self.viewModel.prepareForSearch()
+  }
+  
+  func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+    self.view.removeGestureRecognizer(self.tapRecognizer)
   }
 }

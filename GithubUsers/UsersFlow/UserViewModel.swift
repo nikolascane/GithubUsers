@@ -14,17 +14,23 @@ class UserViewModel {
   
 //MARK: UserDetailsProtocol
   var currentUser: User?
-  var detailError: ((NetworkError)->())?
   
 //MARK: UserListProtocol
   var users: [User] = []
+  private var tempUsers: [User] = []
+  var searchScopeGlobal: Bool = true
   
   var avatarLoaded: ((IndexPath)->())?
   var error: ((NetworkError)->())?
 }
  
 extension UserViewModel: UserListProtocol {
- func getUsers(completion: @escaping ([IndexPath])->()) {
+  
+  func disposeUsers() {
+    self.users = []
+  }
+  
+  func getUsers(completion: @escaping ([IndexPath])->()) {
     UserListLoadWorker().perform(request: self.usersRequest()) { (result: Result<[User], NetworkError>) in
       DispatchQueue.main.async {
         switch result {
@@ -70,6 +76,33 @@ extension UserViewModel: UserListProtocol {
       }
     }
   }
+  
+  func prepareForSearch() {
+    if self.users.count > self.tempUsers.count {
+      self.tempUsers = self.users
+    }
+  }
+  
+  func disposeSearch() {
+    self.users = self.tempUsers
+    self.tempUsers = []
+  }
+  
+  func searchUser(login: String, loaded: @escaping ()->()) {
+    if self.searchScopeGlobal {
+      self.users = []
+      self.loadUser(name: login) { [weak self] user in
+        self?.users = [user]
+        loaded()
+      }
+    }
+    else {
+      self.users = self.tempUsers.filter{
+        $0.nikname.contains(login)
+      }
+      loaded()
+    }
+  }
 }
  
 extension UserViewModel: UserDetailsProtocol {
@@ -94,7 +127,7 @@ extension UserViewModel: UserDetailsProtocol {
         case .success(let user):
           loaded(user)
         case .failure(let error):
-          self.detailError?(error)
+          self.error?(error)
         }
       }
     }
